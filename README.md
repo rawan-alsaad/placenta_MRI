@@ -49,16 +49,11 @@ All partitions were made **at the patient level**, with the same patient assignm
 
 **Source imaging dataset:** [Placenta accreta spectrum disorders (PASDs), Mendeley Data, Version 1](https://doi.org/10.17632/284gwmf5bh.1) (CC BY 4.0).
 
-**Patient-level partition file:** `patient_level_split.csv` (to be added). This supplementary file records the fixed training, validation, and test patient assignments used across MRI sequences and is intended to facilitate independent reproduction of the experimental splits. The original split assignments—not newly generated random splits—should be used when reproducing the reported evaluation.
+**Patient-level partition file:** `patient_level_split.csv`. This supplementary file records the fixed training, validation, and test patient assignments used across MRI sequences and is intended to facilitate independent reproduction of the experimental splits. The original split assignments—not newly generated random splits—should be used when reproducing the reported evaluation.
 
 Implementation details, training configurations, statistical methodology, and limitations are described in the accompanying manuscript. Additional analysis scripts and environment information should be documented alongside the files made available in this repository.
 
-## Interpretation and limitations
-
-The findings demonstrate **segmentation robustness under acquisition-domain shift**, not PAS detection, PAS severity classification, or clinical outcome prediction. The dataset contains PAS cases only. Raw spatial metadata were unavailable, so HD95 is reported in **pixels** and segmentation-derived relative size error is **not a physical placental volume measurement**. The two MRI sequences were separate acquisitions without verified slice-to-slice spatial correspondence. Models were trained once per configuration, and external multisite validation remains necessary.
 
 ## Manuscript and citation
 
-**AlSaad R, Ahmed S, Al-Dewik N, Farrell T, Thomas R.** *Cross-Sequence Robustness of Deep Learning for Placental MRI Segmentation: A Patient-Matched Study in Placenta Accreta Spectrum.* Manuscript under revision at **Bioengineering**.
 
-Please cite the final published article once bibliographic details and a DOI become available.
