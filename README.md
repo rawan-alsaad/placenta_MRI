@@ -56,4 +56,35 @@ Implementation details, training configurations, statistical methodology, and li
 
 ## Manuscript and citation
 
+This repository accompanies the following peer-reviewed, open-access publication:
+
+**AlSaad, R., Ahmed, S., Al-Dewik, N., Farrell, T., & Thomas, R. (2026).** Cross-Sequence Robustness of Deep Learning for Placental MRI Segmentation: A Patient-Matched Study in Placenta Accreta Spectrum. *Bioengineering, 13*(11), 1247.
+
+**Published article:** https://doi.org/10.3390/bioengineering13111247
+
+**Supplementary materials:** https://www.mdpi.com/article/10.3390/bioengineering13111247/s1
+
+If you use this repository, its code, or the experimental methodology in your research, please cite the publication above.
+
+**BibTeX citation:**
+
+```bibtex
+@article{AlSaad2026PlacentaMRI,
+  author  = {AlSaad, Rawan and Ahmed, Sanaa
+             and Al-Dewik, Nader and Farrell, Thomas
+             and Thomas, Rajat},
+  title   = {Cross-Sequence Robustness of Deep Learning
+             for Placental MRI Segmentation:
+             A Patient-Matched Study in Placenta
+             Accreta Spectrum},
+  journal = {Bioengineering},
+  year    = {2026},
+  volume  = {13},
+  number  = {11},
+  pages   = {1247},
+  doi     = {10.3390/bioengineering13111247},
+  url     = {https://doi.org/10.3390/bioengineering13111247}
+}
+```
+
 
