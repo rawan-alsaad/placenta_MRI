@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import random
 import time
 from pathlib import Path
@@ -71,6 +70,10 @@ def train_unet(train_df: pd.DataFrame, validation_df: pd.DataFrame, cfg: Config,
                checkpoint_path: Path, device: torch.device) -> pd.DataFrame:
     """Train one U-Net and save the checkpoint with the lowest validation loss.
 
+    The full training state is saved after every epoch to ``training_state.pt``
+    next to the checkpoint, so an interrupted run resumes from the last completed
+    epoch. The state file is removed once training finishes.
+
     Returns the per-epoch training history (also written next to the checkpoint).
     """
     seed_everything(cfg.seed)
@@ -87,10 +90,21 @@ def train_unet(train_df: pd.DataFrame, validation_df: pd.DataFrame, cfg: Config,
     scaler = torch.amp.GradScaler(device.type, enabled=amp and device.type == "cuda")
 
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    best_loss, best_epoch, best_state = float("inf"), 0, None
-    history = []
+    state_path = training_state_path(checkpoint_path)
+    best_loss, best_epoch, history, start_epoch = float("inf"), 0, [], 1
 
-    for epoch in range(1, cfg.max_epochs + 1):
+    if state_path.exists():
+        state = torch.load(state_path, map_location=device, weights_only=True)
+        model.load_state_dict(state["model"])
+        optimizer.load_state_dict(state["optimizer"])
+        scheduler.load_state_dict(state["scheduler"])
+        scaler.load_state_dict(state["scaler"])
+        torch.set_rng_state(state["torch_rng"])
+        best_loss, best_epoch, history = state["best_loss"], state["best_epoch"], state["history"]
+        start_epoch = state["epoch"] + 1
+        print(f"  resuming from epoch {state['epoch']} (best epoch so far {best_epoch})")
+
+    for epoch in range(start_epoch, cfg.max_epochs + 1):
         start = time.time()
         train_loss = _run_epoch(model, train_loader, device, optimizer, scaler, amp,
                                 cfg.grad_clip_norm)
@@ -107,13 +121,31 @@ def train_unet(train_df: pd.DataFrame, validation_df: pd.DataFrame, cfg: Config,
 
         if improved:
             best_loss, best_epoch = validation_loss, epoch
-            best_state = copy.deepcopy(model.state_dict())
-            torch.save({"model_state_dict": best_state, "epoch": epoch,
-                        "validation_loss": best_loss}, checkpoint_path)
+            _atomic_save({"model_state_dict": model.state_dict(), "epoch": epoch,
+                          "validation_loss": best_loss}, checkpoint_path)
         elif epoch - best_epoch >= cfg.early_stopping_patience:
             print(f"  early stopping at epoch {epoch}; best epoch {best_epoch}")
             break
 
+        _atomic_save({"model": model.state_dict(), "optimizer": optimizer.state_dict(),
+                      "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
+                      "torch_rng": torch.get_rng_state(), "epoch": epoch,
+                      "best_loss": best_loss, "best_epoch": best_epoch,
+                      "history": history}, state_path)
+
     history_df = pd.DataFrame(history)
     history_df.to_csv(checkpoint_path.with_name("history.csv"), index=False)
+    state_path.unlink(missing_ok=True)
     return history_df
+
+
+def training_state_path(checkpoint_path: Path) -> Path:
+    """Location of the resumable training state that belongs to a checkpoint."""
+    return checkpoint_path.with_name("training_state.pt")
+
+
+def _atomic_save(obj: dict, path: Path) -> None:
+    """Save via a temporary file so an interruption never leaves a corrupt file."""
+    temporary = path.with_suffix(".tmp")
+    torch.save(obj, temporary)
+    temporary.replace(path)

@@ -121,6 +121,8 @@ If a checkpoint already exists at `outputs/models/<source>/model_best.pt`, train
 python run_experiment.py --data-dir data --output-dir outputs --retrain
 ```
 
+If a run is interrupted (for example, a pre-empted GPU job), rerun the same command without `--retrain`. Training resumes from the last completed epoch, using the `training_state.pt` file that is saved after every epoch and removed when training finishes.
+
 ### Method summary
 
 | Step | Setting |

@@ -2,8 +2,9 @@
 
 1. Index the public dataset and apply the fixed patient-level split.
 2. Train three U-Nets: BTFE-only, ssh-TSE-only, and pooled BTFE + ssh-TSE.
-   If a checkpoint already exists in the output folder, training of that model
-   is skipped and the saved model is evaluated (use --retrain to override).
+   An interrupted run resumes from its last completed epoch. If a finished
+   checkpoint already exists in the output folder, training of that model is
+   skipped and the saved model is evaluated (use --retrain to override).
 3. Evaluate each model on the 13 held-out test patients for both sequences.
 4. Write patient-level results and the U-Net rows of Tables 1 and 2.
 
@@ -23,7 +24,7 @@ from placenta_seg.config import CONDITIONS, TRAINING_SOURCES, Config
 from placenta_seg.data import build_manifest, select
 from placenta_seg.evaluate import patient_metrics, predict
 from placenta_seg.stats import table1_dice, table2_cross_sequence
-from placenta_seg.train import load_model, train_unet
+from placenta_seg.train import load_model, train_unet, training_state_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +36,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=defaults.output_dir)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--num-workers", type=int, default=defaults.num_workers)
-    parser.add_argument("--max-epochs", type=int, default=defaults.max_epochs)
+    parser.add_argument("--max-epochs", type=int, default=None,
+                        help=f"default {defaults.max_epochs} (1 with --smoke-test)")
     parser.add_argument("--retrain", action="store_true",
                         help="retrain all models even if checkpoints already exist")
     parser.add_argument("--smoke-test", action="store_true",
@@ -54,9 +56,11 @@ def smoke_subset(manifest: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     args = parse_args()
     cfg = Config(data_dir=args.data_dir, split_file=args.split_file, output_dir=args.output_dir,
-                 num_workers=args.num_workers, max_epochs=args.max_epochs)
+                 num_workers=args.num_workers)
     if args.smoke_test:
         cfg.max_epochs, cfg.bootstrap_resamples = 1, 200
+    if args.max_epochs is not None:
+        cfg.max_epochs = args.max_epochs
     device = torch.device(args.device)
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -71,7 +75,10 @@ def main() -> None:
     checkpoints = {}
     for source, sequences in TRAINING_SOURCES.items():
         checkpoints[source] = cfg.output_dir / "models" / source / "model_best.pt"
-        if checkpoints[source].exists() and not args.retrain:
+        state = training_state_path(checkpoints[source])
+        if args.retrain:
+            state.unlink(missing_ok=True)
+        elif checkpoints[source].exists() and not state.exists():
             print(f"[{source}] SKIPPING TRAINING: found existing checkpoint "
                   f"{checkpoints[source]}\n"
                   f"          Results will come from this saved model. To retrain, use "
