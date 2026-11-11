@@ -51,7 +51,96 @@ All partitions were made **at the patient level**, with the same patient assignm
 
 **Patient-level partition file:** `patient_level_split.csv`. This supplementary file records the fixed training, validation, and test patient assignments used across MRI sequences and is intended to facilitate independent reproduction of the experimental splits. The original split assignments—not newly generated random splits—should be used when reproducing the reported evaluation.
 
-Implementation details, training configurations, statistical methodology, and limitations are described in the accompanying manuscript. Additional analysis scripts and environment information should be documented alongside the files made available in this repository.
+Implementation details, training configurations, statistical methodology, and limitations are described in the accompanying manuscript.
+
+## Code: reproducing the main U-Net experiment
+
+This repository contains one end-to-end pipeline: the **U-Net cross-sequence experiment**. It covers the U-Net column of Table 1 and the U-Net rows of Table 2 in the paper. Three U-Nets are trained (BTFE-only, ssh-TSE-only and pooled BTFE + ssh-TSE). Each is then evaluated on the same 13 held-out patients in both sequences. The nnU-Net v2 and U-Mamba Bot pipelines were run with their official frameworks, as described in the manuscript. They are not included here.
+
+### Repository layout
+
+```text
+placenta_mri/
+├── README.md
+├── requirements.txt
+├── patient_level_split.csv     # fixed patient-level train/validation/test split
+├── run_experiment.py           # end-to-end pipeline (train -> evaluate -> tables)
+├── scripts/
+│   └── download_data.py        # downloads and extracts the Mendeley dataset
+└── placenta_seg/
+    ├── config.py               # hyperparameters, training sources, evaluation conditions
+    ├── data.py                 # file pairing, split, preprocessing, augmentation
+    ├── model.py                # 2D U-Net
+    ├── metrics.py              # BCE + soft-Dice loss, Dice, HD95, RVD
+    ├── train.py                # training with early stopping
+    ├── evaluate.py             # inference and patient-level aggregation
+    └── stats.py                # BCa bootstrap CIs and Wilcoxon tests (Tables 1-2)
+```
+
+### 1. Install
+
+Requires Python 3.10 or newer. A CUDA GPU is strongly recommended; see the run times below.
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Download the data
+
+```bash
+python scripts/download_data.py --data-dir data
+```
+
+This downloads the four RAR archives (about 170 MB) from Mendeley Data, verifies their SHA-256 checksums and extracts them to `data/BTFE_image`, `data/BTFE_mask`, `data/ssh_TSE_image` and `data/ssh_TSE_mask`. Extraction needs `unar`, `7z` or `unrar` on your system (for example, `sudo apt install unar` or `brew install unar`).
+
+### 3. Run
+
+```bash
+python run_experiment.py --data-dir data --output-dir outputs
+```
+
+To check that everything is installed correctly, first run a short smoke test (2 patients per split, 1 epoch, about 2 minutes on a CPU):
+
+```bash
+python run_experiment.py --data-dir data --output-dir outputs_smoke --smoke-test
+```
+
+The full run writes:
+
+| File | Content |
+|---|---|
+| `outputs/models/{btfe,sshtse,pooled}/model_best.pt` | checkpoint with the lowest validation loss |
+| `outputs/models/*/history.csv` | per-epoch training and validation loss |
+| `outputs/patient_results.csv` | patient-level Dice, RVD and HD95 for all six conditions |
+| `outputs/table1_dice.csv` | mean patient-level Dice with 95% BCa CI (Table 1, U-Net) |
+| `outputs/table2_cross_sequence.csv` | cross-sequence loss, pooled-training recovery and pooled minus sequence-specific Dice, with BCa CIs and Wilcoxon tests (Table 2, U-Net) |
+
+Checkpoints that already exist are reused. To evaluate previously trained models without retraining, place them at `outputs/models/<source>/model_best.pt` and rerun the command.
+
+### Method summary
+
+| Step | Setting |
+|---|---|
+| Split | Fixed patient-level split from `patient_level_split.csv`, shared by both sequences: 105/13/13 BTFE and 106/13/13 ssh-TSE patients (train/validation/test) |
+| Preprocessing | Grayscale; resized to 256 × 256 (bilinear for images, nearest neighbour for masks); intensities clipped to the 1st–99th percentiles and rescaled to [0, 1] |
+| Augmentation | Horizontal flip (p = 0.5), rotation ±10° (p = 0.7), contrast 0.85–1.15 (p = 0.5), gamma 0.85–1.15 (p = 0.3). The random draw is seeded per slice, so each slice receives the same augmentation in every epoch, as in the original runs |
+| Model | 2D U-Net, 4 encoder levels, 32 initial channels, dropout 0.20 (7.76 M parameters) |
+| Optimisation | BCE + soft-Dice loss, AdamW (lr 1e-4, weight decay 1e-5), cosine annealing, batch size 8, gradient clipping at 5.0, mixed precision, at most 100 epochs, early stopping after 12 epochs without improvement in validation loss |
+| Validation | Same sequence(s) as training; no target-sequence data is used for model selection |
+| Primary outcome | Patient-level aggregated Dice (all test slices of a patient pooled), on the 256 × 256 grid |
+| Statistics | 95% BCa bootstrap CIs (10,000 patient-level resamples); two-sided Wilcoxon signed-rank tests on paired patient-level Dice |
+
+### Expected run time
+
+| Hardware | Approximate time for the full run |
+|---|---|
+| NVIDIA A100 (as used in the paper) | under 1 hour |
+| 4-core CPU (bfloat16 mixed precision) | about 20 hours |
+
+### Reproducibility notes
+
+- Seeds are fixed (2026). GPU kernels, mixed-precision arithmetic and library versions still introduce small numerical differences. Retrained models therefore match the paper closely, but not to every decimal.
+- Mixed precision uses float16 on CUDA, as in the paper, and bfloat16 on CPU.
 
 
 ## Manuscript and citation
