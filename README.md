@@ -177,3 +177,9 @@ If you use this repository, its code, or the experimental methodology in your re
 ```
 
 
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE). You may use, modify and redistribute it, including commercially, provided the copyright and license notice are kept. Please also cite the publication above.
+
+The MRI dataset is not part of this repository. It is distributed separately by its authors on Mendeley Data under the CC BY 4.0 license, which has its own attribution requirements.
