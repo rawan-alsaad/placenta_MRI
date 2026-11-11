@@ -115,7 +115,11 @@ The full run writes:
 | `outputs/table1_dice.csv` | mean patient-level Dice with 95% BCa CI (Table 1, U-Net) |
 | `outputs/table2_cross_sequence.csv` | cross-sequence loss, pooled-training recovery and pooled minus sequence-specific Dice, with BCa CIs and Wilcoxon tests (Table 2, U-Net) |
 
-Checkpoints that already exist are reused. To evaluate previously trained models without retraining, place them at `outputs/models/<source>/model_best.pt` and rerun the command.
+If a checkpoint already exists at `outputs/models/<source>/model_best.pt`, training of that model is skipped and the saved model is evaluated; the script prints a warning when this happens. This lets an interrupted run resume, and lets you evaluate previously trained models by placing them there. If you change any setting, use a new `--output-dir` or add `--retrain` so models are trained from scratch:
+
+```bash
+python run_experiment.py --data-dir data --output-dir outputs --retrain
+```
 
 ### Method summary
 

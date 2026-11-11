@@ -2,7 +2,8 @@
 
 1. Index the public dataset and apply the fixed patient-level split.
 2. Train three U-Nets: BTFE-only, ssh-TSE-only, and pooled BTFE + ssh-TSE.
-   An existing checkpoint is reused instead of retraining.
+   If a checkpoint already exists in the output folder, training of that model
+   is skipped and the saved model is evaluated (use --retrain to override).
 3. Evaluate each model on the 13 held-out test patients for both sequences.
 4. Write patient-level results and the U-Net rows of Tables 1 and 2.
 
@@ -35,6 +36,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--num-workers", type=int, default=defaults.num_workers)
     parser.add_argument("--max-epochs", type=int, default=defaults.max_epochs)
+    parser.add_argument("--retrain", action="store_true",
+                        help="retrain all models even if checkpoints already exist")
     parser.add_argument("--smoke-test", action="store_true",
                         help="2 patients per split and 1 epoch, to check the installation")
     return parser.parse_args()
@@ -68,8 +71,11 @@ def main() -> None:
     checkpoints = {}
     for source, sequences in TRAINING_SOURCES.items():
         checkpoints[source] = cfg.output_dir / "models" / source / "model_best.pt"
-        if checkpoints[source].exists():
-            print(f"[{source}] using existing checkpoint {checkpoints[source]}")
+        if checkpoints[source].exists() and not args.retrain:
+            print(f"[{source}] SKIPPING TRAINING: found existing checkpoint "
+                  f"{checkpoints[source]}\n"
+                  f"          Results will come from this saved model. To retrain, use "
+                  f"--retrain, delete the checkpoint, or choose a new --output-dir.")
             continue
         print(f"[{source}] training U-Net on {' + '.join(sequences)} ({device})")
         train_unet(select(manifest, "train", sequences), select(manifest, "validation", sequences),
