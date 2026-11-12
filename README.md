@@ -140,12 +140,46 @@ If a run is interrupted (for example, a pre-empted GPU job), rerun the same comm
 
 | Hardware | Approximate time for the full run |
 |---|---|
-| NVIDIA A100 (as used in the paper) | under 1 hour |
-| 4-core CPU (bfloat16 mixed precision) | about 20 hours |
+| NVIDIA A100 (as used in the paper) | under 1 hour (about 10 s per epoch for one sequence, 20 s for pooled) |
+| 4-core CPU (bfloat16 mixed precision) | about 17 hours (7–16 min per epoch) |
+
+### Reproduced results
+
+The pipeline was checked in two ways on the public dataset:
+
+1. **Original models.** The three U-Net checkpoints trained for the paper were evaluated with this code (placed in `outputs/models/<source>/model_best.pt`). This tests data handling, the model definition, evaluation and statistics.
+2. **Retrained models.** The three U-Nets were retrained from scratch with `run_experiment.py` on a 4-core CPU.
+
+**Table 1. Mean patient-level Dice (95% BCa CI), 13 held-out patients**
+
+| Training → Testing | Paper | Original models, this code | Retrained on CPU |
+|---|---|---|---|
+| BTFE → BTFE | 0.908 (0.895–0.922) | 0.908 (0.895–0.922) | 0.908 (0.896–0.921) |
+| BTFE → ssh-TSE | 0.822 (0.795–0.844) | 0.822 (0.796–0.844) | 0.832 (0.806–0.853) |
+| ssh-TSE → ssh-TSE | 0.888 (0.869–0.904) | 0.888 (0.868–0.904) | 0.886 (0.868–0.904) |
+| ssh-TSE → BTFE | 0.870 (0.843–0.886) | 0.870 (0.844–0.887) | 0.856 (0.836–0.877) |
+| Pooled → BTFE | 0.914 (0.903–0.925) | 0.914 (0.903–0.925) | 0.913 (0.900–0.924) |
+| Pooled → ssh-TSE | 0.894 (0.878–0.908) | 0.894 (0.877–0.909) | 0.894 (0.877–0.908) |
+
+**Table 2. Paired patient-level Dice differences (95% BCa CI; patients with a positive difference)**
+
+| Quantity | Target | Paper | Original models, this code | Retrained on CPU |
+|---|---|---|---|---|
+| Cross-sequence loss | BTFE | 0.039 (0.025–0.058); 12/13 | 0.039 (0.025–0.057); 12/13 | 0.053 (0.037–0.069); 13/13 |
+| | ssh-TSE | 0.066 (0.054–0.083); 13/13 | 0.066 (0.054–0.083); 13/13 | 0.055 (0.043–0.073); 13/13 |
+| Improvement with pooled training | BTFE | +0.044 (0.033–0.067); 13/13 | +0.044 (0.033–0.066); 13/13 | +0.057 (0.042–0.076); 13/13 |
+| | ssh-TSE | +0.072 (0.059–0.094); 13/13 | +0.072 (0.059–0.093); 13/13 | +0.063 (0.052–0.084); 13/13 |
+| Pooled − sequence-specific | BTFE | +0.0054 (0.0010–0.0110) | +0.0054 (0.0010–0.0109) | +0.0044 (−0.0002–0.0115) |
+| | ssh-TSE | +0.0058 (−0.0018–0.0128) | +0.0058 (−0.0018–0.0130) | +0.0081 (0.0025–0.0124) |
+
+Cross-sequence loss and improvement with pooled training were significant (two-sided Wilcoxon *p* < 0.001) in all three columns.
+
+- **Original models:** all means and patient counts match the paper. Confidence limits can differ by 0.001 because the bootstrap draws random resamples, and the paper's analysis used a different random-number sequence for each comparison.
+- **Retrained models:** in-domain and pooled results match within 0.002 Dice. The two cross-sequence results moved by 0.010–0.014, in opposite directions, so the directional asymmetry is smaller in this run (0.055 vs 0.053, compared with 0.066 vs 0.039 in the paper). Cross-sequence performance is the most sensitive to training randomness, and CPU retraining follows a different numerical path from the paper's GPU run: early stopping selected epochs 23, 25 and 17 (BTFE, ssh-TSE, pooled) instead of 34, 28 and 31.
 
 ### Reproducibility notes
 
-- Seeds are fixed (2026). GPU kernels, mixed-precision arithmetic and library versions still introduce small numerical differences. Retrained models therefore match the paper closely, but not to every decimal.
+- Seeds are fixed (2026). GPU kernels, mixed-precision arithmetic and library versions still introduce numerical differences, so retrained models are not identical to the paper's models (see above).
 - Mixed precision uses float16 on CUDA, as in the paper, and bfloat16 on CPU.
 
 
