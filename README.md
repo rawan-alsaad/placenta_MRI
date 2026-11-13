@@ -144,7 +144,7 @@ If a run is interrupted (for example, a pre-empted GPU job), rerun the same comm
 
 ## Manuscript and citation
 
-This repository accompanies the following peer-reviewed, open-access publication:
+This repository accompanies the following open-access publication:
 
 **AlSaad, R., Ahmed, S., Al-Dewik, N., Farrell, T., & Thomas, R. (2026).** Cross-Sequence Robustness of Deep Learning for Placental MRI Segmentation: A Patient-Matched Study in Placenta Accreta Spectrum. *Bioengineering, 13*(11), 1247.
 
