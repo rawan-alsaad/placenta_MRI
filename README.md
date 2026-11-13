@@ -79,7 +79,7 @@ placenta_mri/
 
 ### 1. Install
 
-Requires Python 3.10 or newer. A CUDA GPU is strongly recommended; see the run times below.
+Requires Python 3.10 or newer. A CUDA GPU is strongly recommended.
 
 ```bash
 pip install -r requirements.txt
@@ -135,13 +135,6 @@ If a run is interrupted (for example, a pre-empted GPU job), rerun the same comm
 | Validation | Same sequence(s) as training; no target-sequence data is used for model selection |
 | Primary outcome | Patient-level aggregated Dice (all test slices of a patient pooled), on the 256 × 256 grid |
 | Statistics | 95% BCa bootstrap CIs (10,000 patient-level resamples); two-sided Wilcoxon signed-rank tests on paired patient-level Dice |
-
-### Expected run time
-
-| Hardware | Approximate time for the full run |
-|---|---|
-| NVIDIA A100 (as used in the paper) | under 1 hour (about 10 s per epoch for one sequence, 20 s for pooled) |
-| 4-core CPU (bfloat16 mixed precision) | about 17 hours (7–16 min per epoch) |
 
 ### Reproducibility notes
 
